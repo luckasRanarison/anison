@@ -24,3 +24,18 @@ interface SongResult {
     lyrics: string;
     url: string;
 }
+
+interface SongEntry extends SongResult {
+    japaneseTitle?: string;
+    englishTitle?: string;
+    description?: string;
+    season?: string;
+    lyricsWritter?: string;
+    compositor?: string;
+    arrangement?: string;
+    episodes?: string;
+    releaseDate?: string;
+    romajiLyrics?: string;
+    englishLyrics?: string;
+    kanjiLyrics?: string;
+}
