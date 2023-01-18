@@ -1,6 +1,11 @@
 import axios from "axios";
 import chalk from "chalk";
 import { load, CheerioAPI } from "cheerio";
+import {
+    parseInfo,
+    parseKanjiLyrics,
+    parseRomajiLyrics,
+} from "../utils/parser";
 
 class AnisoScraper {
     private static async getToken(): Promise<string | undefined> {
@@ -78,8 +83,35 @@ class AnisoScraper {
         return result;
     }
 
-    // to do
-    static async fetchSong() {}
+    static async fetchSong(url: string): Promise<SongEntry> {
+        try {
+            const res = await axios.get(url);
+            const $ = load(res.data);
+            const info = $("#snginfo").html() as string;
+            const parsedInfo = parseInfo(info);
+
+            const romajiLyrics = $(".romajilyrics").html();
+            const englishLyrics = $(".englishlyrics").html();
+            const kanjiLyrics = $(".kanjilyrics").html();
+
+            parsedInfo.url = url;
+            if (romajiLyrics) {
+                parsedInfo.romajiLyrics = parseRomajiLyrics(romajiLyrics);
+            }
+            if (kanjiLyrics) {
+                parsedInfo.kanjiLyrics = parseKanjiLyrics(kanjiLyrics);
+            }
+            if (englishLyrics) {
+                parsedInfo.englishLyrics = parseRomajiLyrics(englishLyrics);
+            }
+
+            return parsedInfo;
+        } catch (error) {
+            console.error(error);
+            console.error("error: error when fetching data");
+            process.exit(2);
+        }
+    }
 
     // to do
     static async searchAnime() {
