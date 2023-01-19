@@ -1,11 +1,8 @@
-import AnisoCLI from "./cli/engine";
+import AnisonCLI from "./cli/main";
 
-(async () => {
-    try {
-        const anison = new AnisoCLI();
-        anison.run();
-    } catch (error) {
-        console.error("An error occured when parsing arrguments");
-        process.exit(1);
-    }
-})();
+try {
+    const anison = new AnisonCLI();
+    anison.run();
+} catch (error) {
+    throw Error("An error occured when parsing arrguments");
+}
