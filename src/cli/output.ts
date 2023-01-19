@@ -1,34 +1,30 @@
 import chalk from "chalk";
 
 const printInfo = (info: SongInfo) => {
-    const infoMap: any = {
-        title: "Title",
-        japanseTitle: "Japanese Title",
-        englishTitle: "English Title",
-        description: "Description",
-        episodes: "Episodes",
-        anime: "From Anime",
-        season: "From Seaso",
-        artist: "Performed by",
-        lyricsWritter: "Lyrics by",
-        compositor: "Composed by",
-        arrangement: "Arranged by",
-        releaseDate: "Released",
-        url: "URL",
-    };
+    const infoMap = new Map<keyof SongInfo, string>([
+        ["title", "Title"],
+        ["japaneseTitle", "Japanese Title"],
+        ["englishTitle", "English Title"],
+        ["description", "Description"],
+        ["episodes", "Episodes"],
+        ["anime", "From Anime"],
+        ["season", "From Seaso"],
+        ["artist", "Performed by"],
+        ["lyricsWritter", "Lyrics by"],
+        ["compositor", "Composed by"],
+        ["arrangement", "Arranged by"],
+        ["releaseDate", "Released"],
+        ["url", "URL"],
+    ]);
 
-    for (const key in infoMap) {
-        if (info[key as keyof SongInfo]) {
-            console.log(
-                `${chalk.cyan(infoMap[key] + ":")} ${
-                    info[key as keyof SongInfo]
-                }`
-            );
+    for (const key of infoMap.keys()) {
+        if (info[key]) {
+            console.log(`${chalk.cyan(infoMap.get(key) + ":")} ${info[key]}`);
         }
     }
 
     console.log(chalk.gray("   -------------------"));
-};
+}; // get the active filter
 
 // todo
 const printLyrics = (lyrics: LyricsObject) => {

@@ -7,41 +7,37 @@ class AnisonLyrics implements LyricsSource {
     public targetUrl: string;
     public language: string;
     public lyricsPreview: boolean;
+    public multipleFilters: boolean;
 
     constructor() {
         this.targetUrl = "https://www.animesonglyrics.com";
         this.language = "english";
         this.lyricsPreview = true;
+        this.multipleFilters = false;
     }
 
-    public async searchSong(
-        query: string,
-        type: "title" | "artist" | "lyrics"
-    ): Promise<SongResult[]> {
+    public async searchSong(query: QueryFilter): Promise<SongResult[]> {
         try {
-            const keyword = query.split(" ");
+            // get the active filters (args)
+            const [type, value] = Object.entries(query).find(
+                ([type, _query]) => type
+            ) as [keyof QueryFilter, string];
+            const keyword = value.split(" ");
+
             const token = await this.getToken();
-            const url = `${this.targetUrl}/results?_token=${token}&q=${query}`;
+            const url = `${this.targetUrl}/results?_token=${token}&q=${value}`;
             const res = await axios.get(url);
             const parsedResult = this.parseSongResult(res.data);
 
-            const match = (str: string, keyword: string[]): boolean =>
+            const match = (str: any, keyword: string[]): boolean =>
                 keyword.some((word) => new RegExp(word, "i").test(str));
 
             // filter results manually
-            const result = parsedResult.filter((result) => {
-                const matchList = {
-                    title: match(result.title, keyword),
-                    artist: match(result.artist as string, keyword),
-                    lyrics: match(result.lyrics as string, keyword),
-                };
+            const result = parsedResult.filter(
+                (result) => match(result[type], keyword) && url
+            );
 
-                if (matchList[type] && url) {
-                    return result;
-                }
-            });
-
-            return result as SongResult[]; // always return an array
+            return result;
         } catch (error) {
             throw Error("error: An error occured when fetching data");
         }
@@ -115,7 +111,7 @@ class AnisonLyrics implements LyricsSource {
                     .text()
                     .trim()
                     .split("-");
-                const url = a.attr("href") as string;
+                const url = a.attr("href") || "";
                 let lyrics = a.find("i").text().trim();
 
                 result.push({ anime, title, url, artist, lyrics });
@@ -129,22 +125,21 @@ class AnisonLyrics implements LyricsSource {
 
     private parseInfo(info: string): SongInfo {
         try {
-            const infoMap: any = {
-                Episodes: "episodes",
-                Description: "description",
-                "Japanese Title": "japanseTitle",
-                "English Title": "englishTitle",
-                "From Anime": "anime",
-                "From Season": "season",
-                "Performed by": "artist",
-                "Lyrics by": "lyricsWritter",
-                "Composed by": "compositor",
-                "Arranged by": "arrangement",
-                "Released:": "releaseDate",
-            };
+            const infoMap = new Map<string, keyof SongInfo>([
+                ["Episodes", "episodes"],
+                ["Description", "description"],
+                ["Japanese Title", "japaneseTitle"],
+                ["English Title", "englishTitle"],
+                ["From Anime", "anime"],
+                ["From Season", "season"],
+                ["Performed by", "artist"],
+                ["Lyrics by", "lyricsWritter"],
+                ["Composed by", "compositor"],
+                ["Arranged by", "arrangement"],
+                ["Released:", "releaseDate"],
+            ]);
 
             const songInfo: any = {};
-
             const match = info.match(
                 /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/gs
             );
@@ -157,12 +152,11 @@ class AnisonLyrics implements LyricsSource {
                     if (singleMatch) {
                         const key = singleMatch[1].trim().replace("\n", "");
                         let prop = singleMatch[2].trim().replace("\n", "");
-                        const infoKey = infoMap[key];
+                        const infoKey = infoMap.get(key);
                         const matchLink = prop.match(/<a.*?>(.*?)<\/a>/s); // nested tag
 
                         if (matchLink) prop = matchLink[1];
-
-                        songInfo[infoKey] = prop;
+                        if (infoKey) songInfo[infoKey] = prop;
                     }
                 });
             }

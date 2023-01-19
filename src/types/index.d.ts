@@ -1,15 +1,16 @@
-type SearchOption = {
-    name: string;
+interface QueryFilter {
+    title: string;
     artist: string;
     lyrics: string;
-};
+}
 
 interface LyricsSource {
     targetUrl: string;
     language: string;
     lyricsPreview: boolean;
+    multipleFilters: boolean;
 
-    searchSong(query: string, type: string): Promise<SongResult[]>;
+    searchSong(query: QueryFilter): Promise<SongResult[]>;
     fetchSong(data: SongResult): Promise<[SongInfo, SongLyrics]>;
     searchAnime?(query: string): Promise<AnimeResult[]>;
     fetchAnime?(url: string): Promise<AnimeResult[]>;
