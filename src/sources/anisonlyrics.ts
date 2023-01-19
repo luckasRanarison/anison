@@ -2,6 +2,7 @@ import axios from "axios";
 import chalk from "chalk";
 import { load } from "cheerio";
 import { rubyParser } from "../utils/parser";
+import { getActiveArgProps } from "../utils/args";
 
 class AnisonLyrics implements LyricsSource {
     public targetUrl: string;
@@ -16,12 +17,9 @@ class AnisonLyrics implements LyricsSource {
         this.multipleFilters = false;
     }
 
-    public async searchSong(query: QueryFilter): Promise<SongResult[]> {
+    public async searchSong(query: SongFilter): Promise<SongResult[]> {
         try {
-            // get the active filters (args)
-            const [type, value] = Object.entries(query).find(
-                ([type, _query]) => type
-            ) as [keyof QueryFilter, string];
+            const [name, value] = getActiveArgProps(query);
             const keyword = value.split(" ");
 
             const token = await this.getToken();
@@ -34,7 +32,8 @@ class AnisonLyrics implements LyricsSource {
 
             // filter results manually
             const result = parsedResult.filter(
-                (result) => match(result[type], keyword) && url
+                (result) =>
+                    match(result[name as keyof SongFilter], keyword) && url
             );
 
             return result;
@@ -49,7 +48,7 @@ class AnisonLyrics implements LyricsSource {
             const $ = load(res.data);
 
             const info = $("#snginfo").html();
-            const parsedInfo = info ? this.parseInfo(info) : data;
+            const parsedInfo = info ? this.parseSongInfo(info) : data;
 
             if (!parsedInfo.url) {
                 parsedInfo.url = data.url;
@@ -73,12 +72,42 @@ class AnisonLyrics implements LyricsSource {
         }
     }
 
-    public async searchAnime(query: string): Promise<AnimeResult[]> {
-        throw new Error("Method not implemented.");
+    public async searchAnime(query: AnimeFilter): Promise<AnimeResult[]> {
+        const [name, value] = getActiveArgProps(query);
+
+        if (name === "title") {
+            const token = await this.getToken();
+            const url = `${this.targetUrl}/results?_token=${token}&q=${value}`;
+            const res = await axios.get(url);
+            const parsedResult = this.parseAnimeResult(res.data);
+
+            return parsedResult;
+        } else {
+            throw Error("Method not implemented.");
+        }
     }
 
-    public async fetchAnime(url: string): Promise<AnimeResult[]> {
-        throw new Error("Method not implemented.");
+    public async fetchAnime(
+        data: AnimeResult
+    ): Promise<[AnimeInfo, SongResult[]]> {
+        const res = await axios.get(data.url);
+        const $ = load(res.data);
+
+        const info = $("#artinfo").html();
+        const parsedInfo = info ? this.parseAnimeInfo(info) : data;
+        parsedInfo.title = data.title;
+
+        const result: SongResult[] = [];
+        const songs = $("#songlist").find("a").not("[href^='#']").not("li > a");
+        songs.each(function () {
+            const a = $(this);
+            const title = a.text().trim();
+            const url = a.attr("href") as string;
+
+            result.push({ anime: data.title, title, url });
+        });
+
+        return [parsedInfo, result];
     }
 
     private async getToken(): Promise<string | undefined> {
@@ -123,48 +152,21 @@ class AnisonLyrics implements LyricsSource {
         }
     }
 
-    private parseInfo(info: string): SongInfo {
-        try {
-            const infoMap = new Map<string, keyof SongInfo>([
-                ["Episodes", "episodes"],
-                ["Description", "description"],
-                ["Japanese Title", "japaneseTitle"],
-                ["English Title", "englishTitle"],
-                ["From Anime", "anime"],
-                ["From Season", "season"],
-                ["Performed by", "artist"],
-                ["Lyrics by", "lyricsWritter"],
-                ["Composed by", "compositor"],
-                ["Arranged by", "arrangement"],
-                ["Released:", "releaseDate"],
-            ]);
+    private parseAnimeResult(data: any): AnimeResult[] {
+        const $ = load(data);
+        const animeList = $("#titlelist").find(".homesongs");
 
-            const songInfo: any = {};
-            const match = info.match(
-                /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/gs
-            );
+        const result: AnimeResult[] = [];
+        animeList.each((_index, anime) => {
+            const a = $(anime).children("a");
+            const title = a.text().trim();
+            const originalTitle = a.attr("title")?.split("|");
+            const url = a.attr("href") as string;
 
-            if (match) {
-                match.forEach((value) => {
-                    const singleMatch = value.match(
-                        /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/s
-                    );
-                    if (singleMatch) {
-                        const key = singleMatch[1].trim().replace("\n", "");
-                        let prop = singleMatch[2].trim().replace("\n", "");
-                        const infoKey = infoMap.get(key);
-                        const matchLink = prop.match(/<a.*?>(.*?)<\/a>/s); // nested tag
+            result.push({ title, originalTitle, url });
+        });
 
-                        if (matchLink) prop = matchLink[1];
-                        if (infoKey) songInfo[infoKey] = prop;
-                    }
-                });
-            }
-
-            return songInfo;
-        } catch (error) {
-            throw new Error("error: An error occured when parsing data.");
-        }
+        return result;
     }
 
     private parseLyrics(lyrics: any): SongLyrics {
@@ -208,9 +210,7 @@ class AnisonLyrics implements LyricsSource {
     }
 
     private parseKanji(kanji: string): LyricsObject {
-        kanji = rubyParser(kanji);
-
-        const raw = kanji
+        const raw = rubyParser(kanji)
             .replace(/<br>/g, "\n")
             .replace(/<div[^>]*>(.*?)<\/div>/, "")
             .replace(/<span[^>]*>(.*?)<\/span>/, "")
@@ -222,6 +222,75 @@ class AnisonLyrics implements LyricsSource {
             .replace(/\(.*\)/g, (match) => chalk.gray(match));
 
         return { raw, colorized };
+    }
+
+    private parseInfo(info: string, map: Map<string, any>) {
+        try {
+            const parsedInfo: any = {};
+            const match = info.match(
+                /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/gs
+            );
+
+            if (match) {
+                match.forEach((value) => {
+                    const singleMatch = value.match(
+                        /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/s
+                    );
+                    if (singleMatch) {
+                        const key = singleMatch[1].trim().replace("\n", "");
+                        let prop = singleMatch[2].trim().replace("\n", "");
+                        const infoKey = map.get(key);
+                        const matchLink = prop.match(/<a.*?>(.*?)<\/a>/s); // nested tag
+
+                        if (matchLink) prop = matchLink[1];
+                        if (infoKey) parsedInfo[infoKey] = prop;
+                    }
+                });
+            }
+
+            return parsedInfo;
+        } catch (error) {
+            throw new Error("error: An error occured when parsing data.");
+        }
+    }
+
+    private parseSongInfo(info: string): SongInfo {
+        try {
+            const infoMap = new Map<string, keyof SongInfo>([
+                ["Episodes", "episodes"],
+                ["Description", "description"],
+                ["Japanese Title", "japaneseTitle"],
+                ["English Title", "englishTitle"],
+                ["From Anime", "anime"],
+                ["From Season", "season"],
+                ["Performed by", "artist"],
+                ["Lyrics by", "lyricsWritter"],
+                ["Composed by", "compositor"],
+                ["Arranged by", "arrangement"],
+                ["Released:", "releaseDate"],
+            ]);
+            const songInfo: SongInfo = this.parseInfo(info, infoMap);
+
+            return songInfo;
+        } catch (error) {
+            throw new Error("error: An error occured when parsing data.");
+        }
+    }
+
+    private parseAnimeInfo(info: string): AnimeInfo {
+        try {
+            const infoMap = new Map<string, keyof AnimeInfo>([
+                ["Japanese Title", "japaneseTitle"],
+                ["English Title", "englishTitle"],
+                ["Released:", "releaseDate"],
+            ]);
+
+            const animeInfo: AnimeInfo = this.parseInfo(info, infoMap);
+
+            return animeInfo;
+        } catch (error) {
+            throw new Error("error: An error occured when parsing data.");
+        }
     }
 }
 

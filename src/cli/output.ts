@@ -1,6 +1,6 @@
 import chalk from "chalk";
 
-const printInfo = (info: SongInfo) => {
+function printSongInfo(info: SongInfo) {
     const infoMap = new Map<keyof SongInfo, string>([
         ["title", "Title"],
         ["japaneseTitle", "Japanese Title"],
@@ -24,11 +24,29 @@ const printInfo = (info: SongInfo) => {
     }
 
     console.log(chalk.gray("   -------------------"));
-}; // get the active filter
+}
 
 // todo
-const printLyrics = (lyrics: LyricsObject) => {
+function printLyrics(lyrics: LyricsObject) {
     console.log(lyrics.colorized);
-};
+}
 
-export { printInfo, printLyrics };
+function printAnimeInfo(info: AnimeInfo) {
+    const infoMap = new Map<keyof AnimeInfo, string>([
+        ["title", "Title"],
+        ["japaneseTitle", "Japanese Title"],
+        ["englishTitle", "English Title"],
+        ["releaseDate", "Released"],
+        ["url", "URL"],
+    ]);
+
+    for (const key of infoMap.keys()) {
+        if (info[key]) {
+            console.log(`${chalk.cyan(infoMap.get(key) + ":")} ${info[key]}`);
+        }
+    }
+
+    console.log(chalk.gray("   -------------------"));
+}
+
+export { printSongInfo, printLyrics, printAnimeInfo };

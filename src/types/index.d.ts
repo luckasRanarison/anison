@@ -1,4 +1,9 @@
-interface QueryFilter {
+interface AnimeFilter {
+    title: string;
+    season: string;
+}
+
+interface SongFilter {
     title: string;
     artist: string;
     lyrics: string;
@@ -10,16 +15,22 @@ interface LyricsSource {
     lyricsPreview: boolean;
     multipleFilters: boolean;
 
-    searchSong(query: QueryFilter): Promise<SongResult[]>;
+    searchSong(query: SongFilter): Promise<SongResult[]>;
     fetchSong(data: SongResult): Promise<[SongInfo, SongLyrics]>;
-    searchAnime?(query: string): Promise<AnimeResult[]>;
-    fetchAnime?(url: string): Promise<AnimeResult[]>;
+    searchAnime?(query: AnimeFilter): Promise<AnimeResult[]>;
+    fetchAnime?(data: AnimeResult): Promise<[AnimeInfo, SongResult[]]>;
 }
 
 interface AnimeResult {
     title: string;
-    originalTitle: string[];
+    originalTitle?: string[];
     url: string;
+}
+
+interface AnimeInfo extends AnimeResult {
+    japaneseTitle?: string;
+    englishTitle?: string;
+    releaseDate?: string;
 }
 
 interface SongResult {

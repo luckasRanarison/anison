@@ -1,10 +1,10 @@
 import chalk from "chalk";
 import inquirer from "inquirer";
 
-const createSongPrompt = async (
+async function createSongPrompt(
     result: SongResult[],
     lyricsPreview: boolean
-): Promise<SongResult> => {
+): Promise<SongResult> {
     const choices: any[] = result.reduce((acc: any[], item, index) => {
         const name: any = `${index + 1}) ${item.anime} ${
             item.artist ? `${item.artist}-` : `:`
@@ -28,11 +28,9 @@ const createSongPrompt = async (
     });
 
     return choice.data;
-};
+}
 
-const createLyricsPrompt = async (
-    lyrics: SongLyrics
-): Promise<LyricsObject> => {
+async function createLyricsPrompt(lyrics: SongLyrics): Promise<LyricsObject> {
     const lyricsMap = new Map<keyof SongLyrics, string>([
         ["romajiLyrics", "Romaji"],
         ["englishLyrics", "English"],
@@ -67,8 +65,29 @@ const createLyricsPrompt = async (
     });
 
     return choice.format;
-};
+}
 
-const createAnimePrompt = () => {};
+async function createAnimePrompt(result: AnimeResult[]) {
+    const choices: any[] = result.reduce((acc: any[], item, index) => {
+        const name: any = `${index + 1}) ${item.title} ${
+            item.originalTitle
+                ? chalk.gray(`(${item.originalTitle.join("")})`)
+                : ""
+        }`;
+        const value: any = { title: item.title, url: item.url };
+
+        return acc.concat([{ name, value }]);
+    }, []);
+
+    const choice = await inquirer.prompt({
+        type: "list",
+        name: "data",
+        message: "Anime results",
+        prefix: "⏵",
+        choices,
+    });
+
+    return choice.data;
+}
 
 export { createSongPrompt, createLyricsPrompt, createAnimePrompt };
