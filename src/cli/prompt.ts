@@ -33,15 +33,18 @@ const createSongPrompt = async (
 const createLyricsPrompt = async (
     lyrics: SongLyrics
 ): Promise<LyricsObject> => {
-    const lyricsMap = [
-        { index: "romajiLyrics", value: "Romaji" },
-        { index: "englishLyrics", value: "English" },
-        { index: "kanjiLyrics", value: "Kanji" },
-    ];
+    const lyricsMap = new Map<keyof SongLyrics, string>([
+        ["romajiLyrics", "Romaji"],
+        ["englishLyrics", "English"],
+        ["kanjiLyrics", "Kanji"],
+    ]);
 
-    const noLyrics = lyricsMap.every(
-        ({ index }) => !lyrics[index as keyof SongLyrics]
-    );
+    let noLyrics = true;
+    for (const key of lyricsMap.keys()) {
+        if (lyrics[key]) {
+            noLyrics = false;
+        }
+    }
 
     if (noLyrics) {
         console.log(chalk.bold("No lyrics available"));
@@ -49,12 +52,11 @@ const createLyricsPrompt = async (
     }
 
     const choices: any[] = [];
-    for (const { index, value } of lyricsMap) {
-        const entryKey = index as keyof SongLyrics;
-        if (lyrics[entryKey]) {
-            choices.push({ name: value, value: lyrics[entryKey] });
+    lyricsMap.forEach((value, key) => {
+        if (lyrics[key]) {
+            choices.push({ name: value, value: lyrics[key] });
         }
-    }
+    });
 
     const choice = await inquirer.prompt({
         type: "list",
