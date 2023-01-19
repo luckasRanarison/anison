@@ -1,8 +1,8 @@
 {
-  "name": "anison",
+  "name": "uta",
   "version": "1.0.0",
-  "description": "utaten scraper",
-  "main": "index.js",
+  "description": "anime songs lyrics websites scraper",
+  "main": "./out/index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch"

@@ -16,7 +16,7 @@ class AnisonLyrics implements LyricsSource {
 
     public async searchSong(
         query: string,
-        type: "name" | "artist" | "lyrics"
+        type: "title" | "artist" | "lyrics"
     ): Promise<SongResult[]> {
         try {
             const keyword = query.split(" ");
@@ -31,7 +31,7 @@ class AnisonLyrics implements LyricsSource {
             // filter results manually
             const result = parsedResult.filter((result) => {
                 const matchList = {
-                    name: match(result.title, keyword),
+                    title: match(result.title, keyword),
                     artist: match(result.artist as string, keyword),
                     lyrics: match(result.lyrics as string, keyword),
                 };

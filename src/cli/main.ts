@@ -5,7 +5,7 @@ import AnisonLyrics from "../sources/anisonlyrics";
 import { createSongPrompt, createLyricsPrompt } from "./prompt";
 import { printInfo, printLyrics } from "./output";
 
-class AnisoCLI {
+class UtaCLI {
     private program: Command;
     private loader: Ora;
     private source: LyricsSource;
@@ -26,16 +26,16 @@ class AnisoCLI {
 
     private defineProgram(): void {
         this.program
-            .name("aniso")
+            .name("uta")
             .description("Japanse song lyrics websites scraper")
             .version(version);
 
         this.program
             .command("song")
-            .description("Search song by name, artist or lyrics")
+            .description("Search song by title, artist or lyrics")
             .allowExcessArguments(false)
             .option("-a, --artist <artist>", "Search by artist")
-            .option("-n, --name <name>", "Search by name")
+            .option("-t, --title <title>", "Search by title")
             .option("-l, --lyrics <lyrics>", "Search by lyrics")
             .action((options: SearchOption) => this.searchSong(options));
     }
@@ -72,4 +72,4 @@ class AnisoCLI {
     }
 }
 
-export default AnisoCLI;
+export default UtaCLI;

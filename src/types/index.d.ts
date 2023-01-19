@@ -8,6 +8,7 @@ interface LyricsSource {
     targetUrl: string;
     language: string;
     lyricsPreview: boolean;
+
     searchSong(query: string, type: string): Promise<SongResult[]>;
     fetchSong(data: SongResult): Promise<[SongInfo, SongLyrics]>;
     searchAnime?(query: string): Promise<AnimeResult[]>;
