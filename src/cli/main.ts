@@ -12,9 +12,7 @@ class UtaCLI {
 
     constructor() {
         this.program = new Command();
-        this.loader = ora({
-            spinner: "dots",
-        });
+        this.loader = ora({ spinner: "dots" });
         this.source = new AnisonLyrics();
     }
 
@@ -49,7 +47,7 @@ class UtaCLI {
 
     private getSource() {}
 
-    private validateFilters(
+    private checkFilters(
         filters: SongFilter | AnimeFilter,
         search: "anime" | "song"
     ) {
@@ -71,63 +69,70 @@ class UtaCLI {
     }
 
     private async searchSong(query: SongFilter) {
-        this.validateFilters(query, "song");
-        this.loader.start("Searching...");
+        try {
+            this.checkFilters(query, "song");
+            this.loader.start("Searching...\n");
 
-        const result = await this.source.searchSong(query);
-        if (!result.length) {
-            this.loader.fail("No song found");
-            process.exit();
+            const result = await this.source.searchSong(query);
+            if (!result.length) {
+                this.loader.fail("No song found");
+                process.exit();
+            }
+
+            this.loader.succeed(
+                `${result.length} song${result.length > 1 ? "s" : ""} found`
+            );
+            const songData = await prompt.createSongPrompt(
+                result,
+                this.source.lyricsPreview
+            );
+
+            this.loader.start("Fetching song...\n");
+            const [info, lyrics] = await this.source.fetchSong(songData);
+            this.loader.stop();
+            printSongInfo(info);
+
+            const choice = await prompt.createLyricsPrompt(lyrics);
+            printLyrics(choice);
+        } catch (error: any) {
+            this.program.error(error.message);
         }
-
-        this.loader.succeed(
-            `${result.length} song${result.length > 1 ? "s" : ""} found`
-        );
-        const songData = await prompt.createSongPrompt(
-            result,
-            this.source.lyricsPreview
-        );
-
-        this.loader.start("Fetching song...");
-        const [info, lyrics] = await this.source.fetchSong(songData);
-        this.loader.stop();
-
-        printSongInfo(info);
-        const choice = await prompt.createLyricsPrompt(lyrics);
-        printLyrics(choice);
     }
 
     private async searchAnime(query: AnimeFilter) {
-        if (!this.source.searchAnime || !this.source.fetchAnime) {
-            throw Error("error: This source doesn't provide anime search");
+        try {
+            if (!this.source.searchAnime || !this.source.fetchAnime) {
+                throw Error("error: This source doesn't provide anime search");
+            }
+
+            this.checkFilters(query, "anime");
+            this.loader.start("Searching...\n");
+
+            const result = await this.source.searchAnime(query);
+            if (!result.length) {
+                this.loader.fail("No anime found");
+                process.exit();
+            }
+
+            this.loader.succeed(`${result.length} anime found`);
+            const animeData = await prompt.createAnimePrompt(result);
+
+            this.loader.start("Fetching anime...\n");
+            const [animeInfo, songs] = await this.source.fetchAnime(animeData);
+            this.loader.stop();
+            printAnimeInfo(animeInfo);
+
+            const songData = await prompt.createSongPrompt(songs, false);
+            this.loader.start("Fetching song...\n");
+            const [songInfo, lyrics] = await this.source.fetchSong(songData);
+            this.loader.stop();
+            printSongInfo(songInfo);
+
+            const choice = await prompt.createLyricsPrompt(lyrics);
+            printLyrics(choice);
+        } catch (error: any) {
+            this.program.error(error.message);
         }
-
-        this.validateFilters(query, "anime");
-        this.loader.start("Searching...");
-
-        const result = await this.source.searchAnime(query);
-        if (!result.length) {
-            this.loader.fail("No anime found");
-            process.exit();
-        }
-
-        this.loader.succeed(`${result.length} anime found`);
-        const animeData = await prompt.createAnimePrompt(result);
-
-        this.loader.start("Fetching anime...");
-        const [animeInfo, songs] = await this.source.fetchAnime(animeData);
-        this.loader.stop();
-
-        printAnimeInfo(animeInfo);
-
-        const songData = await prompt.createSongPrompt(songs, false);
-        this.loader.start("Fetching song...");
-        const [songInfo, lyrics] = await this.source.fetchSong(songData);
-        this.loader.stop();
-
-        printSongInfo(songInfo);
-        const choice = await prompt.createLyricsPrompt(lyrics);
-        printLyrics(choice);
     }
 }
 

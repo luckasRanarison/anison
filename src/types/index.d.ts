@@ -10,7 +10,7 @@ interface SongFilter {
 }
 
 interface LyricsSource {
-    targetUrl: string;
+    baseUrl: string;
     language: string;
     lyricsPreview: boolean;
     multipleFilters: boolean;
