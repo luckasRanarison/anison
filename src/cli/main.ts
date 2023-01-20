@@ -1,61 +1,82 @@
 import ora, { Ora } from "ora";
 import { Command } from "commander";
-import { version } from "../../package.json";
-import { printSongInfo, printLyrics, printAnimeInfo } from "./output";
+import * as output from "./output";
 import * as prompt from "./prompt";
+import { version } from "../../package.json";
+import { defaultConfig } from "../config/default";
 import AnisonLyrics from "../sources/anisonlyrics";
 
 class UtaCLI {
     private program: Command;
     private loader: Ora;
     private source: LyricsSource;
+    private config: typeof defaultConfig;
 
-    constructor() {
-        this.program = new Command();
-        this.loader = ora({ spinner: "dots" });
-        this.source = new AnisonLyrics();
+    constructor(config: any) {
+        this.program = this.defineProgram();
+        this.loader = ora();
+        this.config = config;
+        this.source = this.getSource(this.config.defaultSource);
     }
 
     public run() {
-        this.defineProgram();
         this.program.parse();
     }
 
-    private defineProgram() {
-        this.program
+    public error(message: string) {
+        this.program.error(message);
+    }
+
+    private defineProgram(): Command {
+        const program = new Command();
+
+        program
             .name("uta")
             .description("Japanse song lyrics websites scraper")
-            .version(version);
+            .version(version, "-v, --version");
 
-        this.program
+        program
             .command("song")
             .description("Search song by title, artist or lyrics")
             .allowExcessArguments(false)
             .option("-a, --artist <artist>", "Search by artist")
             .option("-t, --title <title>", "Search by title")
             .option("-l, --lyrics <lyrics>", "Search by lyrics")
-            .action((options: SongFilter) => this.searchSong(options));
+            .option("-S, --source <source>", "Specify source")
+            .action((options: SongQuery) => this.searchSong(options));
 
-        this.program
+        program
             .command("anime")
             .description("Search a specific anime song")
             .allowExcessArguments(false)
             .option("-t, --title <title>", "Search by title")
             .option("-s, --season <season>", "Search by season")
-            .action((options: AnimeFilter) => this.searchAnime(options));
+            .option("-S, --source <source>", "Specify source")
+            .action((options: AnimeQuery) => this.searchAnime(options));
+
+        return program;
     }
 
-    private getSource() {}
+    private getSource(source: string): LyricsSource {
+        switch (source) {
+            case "animesonglyrics":
+                return new AnisonLyrics();
+            default:
+                throw Error("error: Invalid source");
+        }
+    }
 
     private checkFilters(
-        filters: SongFilter | AnimeFilter,
+        filters: SongQuery | AnimeQuery,
         search: "anime" | "song"
     ) {
         if (!Object.keys(filters).length) {
             throw Error("error: No option provided");
         }
 
-        const argOverflow = Object.keys(filters).length > 1;
+        const argOverflow = filters.source
+            ? Object.keys(filters).length > 2
+            : Object.keys(filters).length > 1;
 
         if (search === "song" && !this.source.multipleFilters && argOverflow) {
             throw Error(
@@ -68,8 +89,12 @@ class UtaCLI {
         }
     }
 
-    private async searchSong(query: SongFilter) {
+    private async searchSong(query: SongQuery) {
         try {
+            if (query.source) {
+                this.source = this.getSource(query.source);
+            }
+
             this.checkFilters(query, "song");
             this.loader.start("Searching...\n");
 
@@ -90,17 +115,21 @@ class UtaCLI {
             this.loader.start("Fetching song...\n");
             const [info, lyrics] = await this.source.fetchSong(songData);
             this.loader.stop();
-            printSongInfo(info);
+            output.printSongInfo(info);
 
             const choice = await prompt.createLyricsPrompt(lyrics);
-            printLyrics(choice);
+            output.printLyrics(choice);
         } catch (error: any) {
             this.program.error(error.message);
         }
     }
 
-    private async searchAnime(query: AnimeFilter) {
+    private async searchAnime(query: AnimeQuery) {
         try {
+            if (query.source) {
+                this.source = this.getSource(query.source);
+            }
+
             if (!this.source.searchAnime || !this.source.fetchAnime) {
                 throw Error("error: This source doesn't provide anime search");
             }
@@ -120,16 +149,16 @@ class UtaCLI {
             this.loader.start("Fetching anime...\n");
             const [animeInfo, songs] = await this.source.fetchAnime(animeData);
             this.loader.stop();
-            printAnimeInfo(animeInfo);
+            output.printAnimeInfo(animeInfo);
 
             const songData = await prompt.createSongPrompt(songs, false);
             this.loader.start("Fetching song...\n");
             const [songInfo, lyrics] = await this.source.fetchSong(songData);
             this.loader.stop();
-            printSongInfo(songInfo);
+            output.printSongInfo(songInfo);
 
             const choice = await prompt.createLyricsPrompt(lyrics);
-            printLyrics(choice);
+            output.printLyrics(choice);
         } catch (error: any) {
             this.program.error(error.message);
         }
