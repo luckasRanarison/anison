@@ -1,4 +1,10 @@
-const rubyParser = (str: string): string => {
+/**
+ * Parse furigana ruby tags and return the kanji writting of each tags
+ * @param str - text containing ruby tags
+ * @returns parsed kanji text
+ */
+
+function rubyParser(str: string): string {
     const rubyTags = str.match(/<ruby>.*?<rb>([^<]+)<\/rb>.*?<\/ruby>/g);
 
     if (rubyTags) {
@@ -11,6 +17,6 @@ const rubyParser = (str: string): string => {
     }
 
     return str;
-};
+}
 
 export { rubyParser };

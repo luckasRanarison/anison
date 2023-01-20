@@ -1,24 +1,27 @@
-interface AnimeFilter {
-    title: string;
-    season: string;
-}
-
-interface SongFilter {
-    title: string;
-    artist: string;
-    lyrics: string;
-}
-
 interface LyricsSource {
+    name: string;
     baseUrl: string;
     language: string;
     lyricsPreview: boolean;
     multipleFilters: boolean;
 
-    searchSong(query: SongFilter): Promise<SongResult[]>;
+    searchSong(query: SongQuery): Promise<SongResult[]>;
     fetchSong(data: SongResult): Promise<[SongInfo, SongLyrics]>;
-    searchAnime?(query: AnimeFilter): Promise<AnimeResult[]>;
+    searchAnime?(query: AnimeQuery): Promise<AnimeResult[]>;
     fetchAnime?(data: AnimeResult): Promise<[AnimeInfo, SongResult[]]>;
+}
+
+interface AnimeQuery {
+    title: string;
+    season: string;
+    source: string;
+}
+
+interface SongQuery {
+    title: string;
+    artist: string;
+    lyrics: string;
+    source: string;
 }
 
 interface AnimeResult {

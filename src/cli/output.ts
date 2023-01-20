@@ -26,11 +26,6 @@ function printSongInfo(info: SongInfo) {
     console.log(chalk.gray("   -------------------"));
 }
 
-// todo
-function printLyrics(lyrics: LyricsObject) {
-    console.log(lyrics.colorized);
-}
-
 function printAnimeInfo(info: AnimeInfo) {
     const infoMap = new Map<keyof AnimeInfo, string>([
         ["title", "Title"],
@@ -47,6 +42,11 @@ function printAnimeInfo(info: AnimeInfo) {
     }
 
     console.log(chalk.gray("   -------------------"));
+}
+
+// todo
+function printLyrics(lyrics: LyricsObject) {
+    console.log(lyrics.colorized);
 }
 
 export { printSongInfo, printLyrics, printAnimeInfo };
