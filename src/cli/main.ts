@@ -4,7 +4,7 @@ import * as output from "./output";
 import * as prompt from "./prompt";
 import { version } from "../../package.json";
 import { defaultConfig } from "../config/default";
-import AnisonLyrics from "../sources/anisonlyrics";
+import { AnisonLyrics } from "../sources";
 
 class UtaCLI {
     private program: Command;
@@ -113,11 +113,11 @@ class UtaCLI {
             );
 
             this.loader.start("Fetching song...\n");
-            const [info, lyrics] = await this.source.fetchSong(songData);
+            const song = await this.source.fetchSong(songData);
             this.loader.stop();
-            output.printSongInfo(info);
+            output.printSongInfo(song.info);
 
-            const choice = await prompt.createLyricsPrompt(lyrics);
+            const choice = await prompt.createLyricsPrompt(song.lyrics);
             output.printLyrics(choice);
         } catch (error: any) {
             this.program.error(error.message);
@@ -147,17 +147,17 @@ class UtaCLI {
             const animeData = await prompt.createAnimePrompt(result);
 
             this.loader.start("Fetching anime...\n");
-            const [animeInfo, songs] = await this.source.fetchAnime(animeData);
+            const anime = await this.source.fetchAnime(animeData);
             this.loader.stop();
-            output.printAnimeInfo(animeInfo);
+            output.printAnimeInfo(anime.info);
 
-            const songData = await prompt.createSongPrompt(songs, false);
+            const songData = await prompt.createSongPrompt(anime.songs, false);
             this.loader.start("Fetching song...\n");
-            const [songInfo, lyrics] = await this.source.fetchSong(songData);
+            const song = await this.source.fetchSong(songData);
             this.loader.stop();
-            output.printSongInfo(songInfo);
+            output.printSongInfo(song.info);
 
-            const choice = await prompt.createLyricsPrompt(lyrics);
+            const choice = await prompt.createLyricsPrompt(song.lyrics);
             output.printLyrics(choice);
         } catch (error: any) {
             this.program.error(error.message);

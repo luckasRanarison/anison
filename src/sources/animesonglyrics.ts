@@ -2,28 +2,22 @@ import axios from "axios";
 import chalk from "chalk";
 import { load } from "cheerio";
 import { rubyParser } from "../utils/parser";
-import { getActiveArgProps } from "../utils/args";
+import { getActiveArg } from "../utils/args";
 
 class AnisonLyrics implements LyricsSource {
-    public baseUrl: string;
-    public language: string;
-    public lyricsPreview: boolean;
-    public multipleFilters: boolean;
+    public name: string = "animesonglyrics";
+    public baseUrl: string = "https://www.animesonglyrics.com";
+    public language: string = "english";
+    public lyricsPreview: boolean = true;
+    public multipleFilters: boolean = false;
 
-    constructor() {
-        this.baseUrl = "https://www.animesonglyrics.com";
-        this.language = "english";
-        this.lyricsPreview = true;
-        this.multipleFilters = false;
-    }
-
-    public async searchSong(query: SongFilter): Promise<SongResult[]> {
+    public async searchSong(query: SongQuery): Promise<SongResult[]> {
         try {
-            const [name, value] = getActiveArgProps(query);
-            const keyword = value.split(" ");
+            const arg = getActiveArg(query);
+            const keyword = arg.value.split(" ");
 
             const token = await this.getToken();
-            const url = `${this.baseUrl}/results?_token=${token}&q=${value}`;
+            const url = `${this.baseUrl}/results?_token=${token}&q=${arg.value}`;
             const res = await axios.get(url);
             const parsedResult = this.parseSongResult(res.data);
 
@@ -33,7 +27,7 @@ class AnisonLyrics implements LyricsSource {
             // filter results manually
             const result = parsedResult.filter(
                 (result) =>
-                    match(result[name as keyof SongFilter], keyword) && url
+                    match(result[arg.name as keyof SongResult], keyword) && url
             );
 
             return result;
@@ -42,43 +36,43 @@ class AnisonLyrics implements LyricsSource {
         }
     }
 
-    public async fetchSong(data: SongResult): Promise<[SongInfo, SongLyrics]> {
+    public async fetchSong(data: SongResult): Promise<SongEntry> {
         try {
             const res = await axios.get(data.url);
             const $ = load(res.data);
 
-            const info = $("#snginfo").html();
-            const parsedInfo = info ? this.parseSongInfo(info) : data;
+            const songInfo = $("#snginfo").html();
+            const info = songInfo ? this.parseSongInfo(songInfo) : data;
 
-            if (!parsedInfo.url) {
-                parsedInfo.url = data.url;
-                parsedInfo.title = data.title;
+            if (!info.url) {
+                info.url = data.url;
+                info.title = data.title;
             }
 
             const romajiLyrics = $(".romajilyrics").html();
             const englishLyrics = $(".englishlyrics").html();
             const kanjiLyrics = $(".kanjilyrics").html();
 
-            const lyrics: any = {};
-            if (romajiLyrics) lyrics.romajiLyrics = romajiLyrics;
-            if (kanjiLyrics) lyrics.kanjiLyrics = kanjiLyrics;
-            if (englishLyrics) lyrics.englishLyrics = englishLyrics;
+            const rawLyrics: any = {};
+            if (romajiLyrics) rawLyrics.romajiLyrics = romajiLyrics;
+            if (kanjiLyrics) rawLyrics.kanjiLyrics = kanjiLyrics;
+            if (englishLyrics) rawLyrics.englishLyrics = englishLyrics;
 
-            const parsedLyrics = this.parseLyrics(lyrics);
+            const lyrics = this.parseLyrics(rawLyrics);
 
-            return [parsedInfo, parsedLyrics];
+            return { info, lyrics };
         } catch (error) {
             throw new Error("error: An error occured when fetching data");
         }
     }
 
-    public async searchAnime(query: AnimeFilter): Promise<AnimeResult[]> {
+    public async searchAnime(query: AnimeQuery): Promise<AnimeResult[]> {
         try {
-            const [name, value] = getActiveArgProps(query);
+            const arg = getActiveArg(query);
 
-            if (name === "title") {
+            if (arg.name === "title") {
                 const token = await this.getToken();
-                const url = `${this.baseUrl}/results?_token=${token}&q=${value}`;
+                const url = `${this.baseUrl}/results?_token=${token}&q=${arg.value}`;
                 const res = await axios.get(url);
                 const parsedResult = this.parseAnimeResult(res.data);
 
@@ -91,31 +85,31 @@ class AnisonLyrics implements LyricsSource {
         }
     }
 
-    public async fetchAnime(
-        data: AnimeResult
-    ): Promise<[AnimeInfo, SongResult[]]> {
+    public async fetchAnime(data: AnimeResult): Promise<AnimeEntry> {
         try {
             const res = await axios.get(data.url);
             const $ = load(res.data);
 
-            const info = $("#artinfo").html();
-            const parsedInfo = info ? this.parseAnimeInfo(info) : data;
-            parsedInfo.title = data.title;
+            const animeInfo = $("#artinfo").html();
+            const info = animeInfo ? this.parseAnimeInfo(animeInfo) : data;
 
-            const result: SongResult[] = [];
-            const songs = $("#songlist")
+            info.title = data.title;
+            info.url = data.url;
+
+            const songs: SongResult[] = [];
+            const rawSongs = $("#songlist")
                 .find("a")
                 .not("[href^='#']")
                 .not("li > a");
-            songs.each(function () {
+            rawSongs.each(function () {
                 const a = $(this);
                 const title = a.text().trim();
                 const url = a.attr("href") as string;
 
-                result.push({ anime: data.title, title, url });
+                songs.push({ anime: data.title, title, url });
             });
 
-            return [parsedInfo, result];
+            return { info, songs };
         } catch (error) {
             throw new Error("error: An error occured when fetching data");
         }
@@ -231,27 +225,27 @@ class AnisonLyrics implements LyricsSource {
     }
 
     private parseInfo(info: string, map: Map<string, any>) {
-        const parsedInfo: any = {};
         const match = info.match(
             /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/gs
         );
 
-        if (match) {
-            match.forEach((value) => {
-                const singleMatch = value.match(
-                    /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/s
-                );
-                if (singleMatch) {
-                    const key = singleMatch[1].trim().replace("\n", "");
-                    let prop = singleMatch[2].trim().replace("\n", "");
-                    const infoKey = map.get(key);
-                    const matchLink = prop.match(/<a.*?>(.*?)<\/a>/s); // nested tag
+        if (!match) return {};
 
-                    if (matchLink) prop = matchLink[1];
-                    if (infoKey) parsedInfo[infoKey] = prop;
-                }
-            });
-        }
+        const parsedInfo: any = {};
+        match.forEach((value) => {
+            const singleMatch = value.match(
+                /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/s
+            );
+            if (singleMatch) {
+                const key = singleMatch[1].trim().replace("\n", "");
+                let prop = singleMatch[2].trim().replace("\n", "");
+                const infoKey = map.get(key);
+                const matchLink = prop.match(/<a.*?>(.*?)<\/a>/s); // nested tag
+
+                if (matchLink) prop = matchLink[1];
+                if (infoKey) parsedInfo[infoKey] = prop;
+            }
+        });
 
         return parsedInfo;
     }
