@@ -10,8 +10,13 @@
   "author": "Luckas",
   "license": "MIT",
   "devDependencies": {
+    "@types/fs-extra": "^11.0.1",
     "@types/inquirer": "^9.0.3",
+    "@types/jest": "^29.2.6",
     "@types/node": "^18.11.18",
+    "@types/terminal-kit": "^2.5.1",
+    "jest": "^29.3.1",
+    "ts-jest": "^29.0.5",
     "typescript": "^4.9.4"
   },
   "dependencies": {
@@ -19,7 +24,9 @@
     "chalk": "^4.1.2",
     "cheerio": "^1.0.0-rc.12",
     "commander": "^10.0.0",
+    "fs-extra": "^11.1.0",
     "inquirer": "^8.2.3",
-    "ora": "^5"
+    "ora": "^5",
+    "terminal-kit": "^3.0.0"
   }
 }
