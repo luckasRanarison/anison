@@ -3,32 +3,28 @@ import { Command } from "commander";
 import * as output from "./output";
 import * as prompt from "./prompt";
 import { version } from "../../package.json";
-import { defaultConfig } from "../config/default";
 import { AnisonLyrics } from "../sources";
+import defaultConfig from "../config/default";
 
 class UtaCLI {
+    private config: UtaConfig;
     private program: Command;
     private loader: Ora;
-    private source: LyricsSource;
-    private config: typeof defaultConfig;
+    private source?: LyricsSource;
 
-    constructor(config: any) {
-        this.program = this.defineProgram();
-        this.loader = ora();
+    constructor(config = defaultConfig) {
         this.config = config;
-        this.source = this.getSource(this.config.defaultSource);
+        this.program = this.defineProgram();
+        this.loader = ora({ spinner: "dots" });
     }
 
-    public run() {
-        this.program.parse();
-    }
-
-    public error(message: string) {
-        this.program.error(message);
+    public parse(args: string[]) {
+        this.program.parse(args);
     }
 
     private defineProgram(): Command {
         const program = new Command();
+        const defaultSource = this.config.defaultSource;
 
         program
             .name("uta")
@@ -42,7 +38,7 @@ class UtaCLI {
             .option("-a, --artist <artist>", "Search by artist")
             .option("-t, --title <title>", "Search by title")
             .option("-l, --lyrics <lyrics>", "Search by lyrics")
-            .option("-S, --source <source>", "Specify source")
+            .option("-S, --source <source>", "Specify source", defaultSource)
             .action((options: SongQuery) => this.searchSong(options));
 
         program
@@ -51,7 +47,7 @@ class UtaCLI {
             .allowExcessArguments(false)
             .option("-t, --title <title>", "Search by title")
             .option("-s, --season <season>", "Search by season")
-            .option("-S, --source <source>", "Specify source")
+            .option("-S, --source <source>", "Specify source", defaultSource)
             .action((options: AnimeQuery) => this.searchAnime(options));
 
         return program;
@@ -66,38 +62,28 @@ class UtaCLI {
         }
     }
 
-    private checkFilters(
-        filters: SongQuery | AnimeQuery,
-        search: "anime" | "song"
-    ) {
-        if (!Object.keys(filters).length) {
+    // to fix
+    private isInvalidArg(args: SongQuery | AnimeQuery) {
+        const argsCount = Object.keys(args).length;
+
+        if (!argsCount) {
             throw Error("error: No option provided");
         }
 
-        const argOverflow = filters.source
-            ? Object.keys(filters).length > 2
-            : Object.keys(filters).length > 1;
-
-        if (search === "song" && !this.source.multipleFilters && argOverflow) {
-            throw Error(
-                "error: Multiple filters are not allowed for this source"
-            );
-        }
-
-        if (search === "anime" && argOverflow) {
-            throw Error("error: Multiple filters are not allowed for anime");
-        }
+        return args.source ? argsCount > 2 : argsCount > 1;
     }
 
     private async searchSong(query: SongQuery) {
         try {
-            if (query.source) {
-                this.source = this.getSource(query.source);
+            this.source = this.getSource(query.source);
+
+            if (!this.source.multipleFilters && this.isInvalidArg(query)) {
+                throw Error(
+                    "error: Multiple filters are not allowed for this source"
+                );
             }
 
-            this.checkFilters(query, "song");
             this.loader.start("Searching...\n");
-
             const result = await this.source.searchSong(query);
             if (!result.length) {
                 this.loader.fail("No song found");
@@ -114,29 +100,34 @@ class UtaCLI {
 
             this.loader.start("Fetching song...\n");
             const song = await this.source.fetchSong(songData);
+
             this.loader.stop();
             output.printSongInfo(song.info);
 
             const choice = await prompt.createLyricsPrompt(song.lyrics);
             output.printLyrics(choice);
-        } catch (error: any) {
-            this.program.error(error.message);
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                this.program.error(error.message);
+            }
         }
     }
 
     private async searchAnime(query: AnimeQuery) {
         try {
-            if (query.source) {
-                this.source = this.getSource(query.source);
-            }
+            this.source = this.getSource(query.source);
 
             if (!this.source.searchAnime || !this.source.fetchAnime) {
                 throw Error("error: This source doesn't provide anime search");
             }
 
-            this.checkFilters(query, "anime");
-            this.loader.start("Searching...\n");
+            if (this.isInvalidArg(query)) {
+                throw Error(
+                    "error: Multiple filters are not allowed for anime"
+                );
+            }
 
+            this.loader.start("Searching...\n");
             const result = await this.source.searchAnime(query);
             if (!result.length) {
                 this.loader.fail("No anime found");
@@ -148,19 +139,24 @@ class UtaCLI {
 
             this.loader.start("Fetching anime...\n");
             const anime = await this.source.fetchAnime(animeData);
+
             this.loader.stop();
             output.printAnimeInfo(anime.info);
 
             const songData = await prompt.createSongPrompt(anime.songs, false);
+
             this.loader.start("Fetching song...\n");
             const song = await this.source.fetchSong(songData);
+
             this.loader.stop();
             output.printSongInfo(song.info);
 
             const choice = await prompt.createLyricsPrompt(song.lyrics);
             output.printLyrics(choice);
-        } catch (error: any) {
-            this.program.error(error.message);
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                this.program.error(error.message);
+            }
         }
     }
 }

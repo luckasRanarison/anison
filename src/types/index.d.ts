@@ -38,7 +38,7 @@ interface SongQuery {
     title?: string;
     artist?: string;
     lyrics?: string;
-    source?: string;
+    source: string;
 }
 
 /**
@@ -55,7 +55,7 @@ interface SongResult {
 /**
  * more detailed informations about the song
  */
-interface SongInfo extends SongResult {
+interface SongInfo extends Omit<SongResult, "lyrics"> {
     japaneseTitle?: string;
     englishTitle?: string;
     description?: string;
@@ -74,6 +74,11 @@ interface SongEntry {
     info: SongInfo;
     lyrics: SongLyrics;
 }
+
+/**
+ * lyrics parser function
+ */
+type LyricsParser = (lyrics: string) => LyricsObject;
 
 /**
  * used to separate the raw and colorize text using chalk
@@ -98,7 +103,7 @@ interface SongLyrics {
 interface AnimeQuery {
     title?: string;
     season?: string;
-    source?: string;
+    source: string;
 }
 
 /**
@@ -125,4 +130,13 @@ interface AnimeInfo extends AnimeResult {
 interface AnimeEntry {
     info: AnimeInfo;
     songs: SongResult[];
+}
+
+/**
+ * represents the application confifuration
+ */
+interface UtaConfig {
+    defaultSource: string;
+    cache: boolean;
+    cacheLocation: string;
 }

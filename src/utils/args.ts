@@ -4,12 +4,14 @@
  * @returns the name and value of the argument as an object
  */
 
-function getActiveArg(args: any): { name: string; value: any } {
-    const [name, value] = Object.entries(args).find(
-        ([name, _]) => name && name !== "source"
-    ) as [any, any];
+function getActiveArg(args: any): { name: string; value: string } {
+    for (const key in args) {
+        if (key && key !== "source") {
+            return { name: key, value: args[key] };
+        }
+    }
 
-    return { name, value };
+    throw new Error("error: No argument specified");
 }
 
 export { getActiveArg };

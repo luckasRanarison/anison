@@ -1,10 +1,10 @@
 import fs from "fs-extra";
-import { defaultConfig } from "./default";
+import defaultConfig from "./default";
 
 class Configurer {
     static filePath = "config.json";
 
-    static async getConfig(): Promise<any> {
+    static async getConfig(): Promise<UtaConfig> {
         try {
             if (await fs.pathExists(this.filePath)) {
                 const data = await fs.readFile(this.filePath, "utf8");

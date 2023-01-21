@@ -9,7 +9,7 @@ function rubyParser(str: string): string {
 
     if (rubyTags) {
         rubyTags.forEach((tag) => {
-            let match = tag.match(/<rb>([^<]+)<\/rb>/);
+            const match = tag.match(/<rb>([^<]+)<\/rb>/);
             if (match) {
                 str = str.replace(tag, match[1]);
             }

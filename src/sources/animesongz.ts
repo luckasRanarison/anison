@@ -1,9 +1,9 @@
 class Anisongz implements LyricsSource {
-    public name: string = "animesongz";
-    public baseUrl: string = "https://animesongz.com";
-    public language: string = "japanese";
-    public lyricsPreview: boolean = false;
-    public multipleFilters: boolean = false;
+    public name = "animesongz";
+    public baseUrl = "https://animesongz.com";
+    public language = "japanese";
+    public lyricsPreview = false;
+    public multipleFilters = false;
 
     searchSong(query: SongQuery): Promise<SongResult[]> {
         throw new Error("Method not implemented.");

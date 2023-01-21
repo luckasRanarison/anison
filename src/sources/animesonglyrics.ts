@@ -5,11 +5,11 @@ import { rubyParser } from "../utils/parser";
 import { getActiveArg } from "../utils/args";
 
 class AnisonLyrics implements LyricsSource {
-    public name: string = "animesonglyrics";
-    public baseUrl: string = "https://www.animesonglyrics.com";
-    public language: string = "english";
-    public lyricsPreview: boolean = true;
-    public multipleFilters: boolean = false;
+    public name = "animesonglyrics";
+    public baseUrl = "https://www.animesonglyrics.com";
+    public language = "english";
+    public lyricsPreview = true;
+    public multipleFilters = false;
 
     public async searchSong(query: SongQuery): Promise<SongResult[]> {
         try {
@@ -21,14 +21,16 @@ class AnisonLyrics implements LyricsSource {
             const res = await axios.get(url);
             const parsedResult = this.parseSongResult(res.data);
 
-            const match = (str: any, keyword: string[]): boolean =>
+            const match = (str: string, keyword: string[]): boolean =>
                 keyword.some((word) => new RegExp(word, "i").test(str));
 
             // filter results manually
-            const result = parsedResult.filter(
-                (result) =>
-                    match(result[arg.name as keyof SongResult], keyword) && url
-            );
+            const result = parsedResult.filter((result) => {
+                const str = result[arg.name as keyof SongResult];
+                if (str) {
+                    return match(str, keyword) && url; // has a valid url
+                }
+            });
 
             return result;
         } catch (error) {
@@ -41,19 +43,14 @@ class AnisonLyrics implements LyricsSource {
             const res = await axios.get(data.url);
             const $ = load(res.data);
 
-            const songInfo = $("#snginfo").html();
-            const info = songInfo ? this.parseSongInfo(songInfo) : data;
-
-            if (!info.url) {
-                info.url = data.url;
-                info.title = data.title;
-            }
+            const rawInfo = $("#snginfo").html();
+            const info = rawInfo ? this.parseSongInfo(rawInfo, data) : data;
 
             const romajiLyrics = $(".romajilyrics").html();
             const englishLyrics = $(".englishlyrics").html();
             const kanjiLyrics = $(".kanjilyrics").html();
 
-            const rawLyrics: any = {};
+            const rawLyrics: Record<string, string> = {};
             if (romajiLyrics) rawLyrics.romajiLyrics = romajiLyrics;
             if (kanjiLyrics) rawLyrics.kanjiLyrics = kanjiLyrics;
             if (englishLyrics) rawLyrics.englishLyrics = englishLyrics;
@@ -90,11 +87,8 @@ class AnisonLyrics implements LyricsSource {
             const res = await axios.get(data.url);
             const $ = load(res.data);
 
-            const animeInfo = $("#artinfo").html();
-            const info = animeInfo ? this.parseAnimeInfo(animeInfo) : data;
-
-            info.title = data.title;
-            info.url = data.url;
+            const rawInfo = $("#artinfo").html();
+            const info = rawInfo ? this.parseAnimeInfo(rawInfo, data) : data;
 
             const songs: SongResult[] = [];
             const rawSongs = $("#songlist")
@@ -141,7 +135,7 @@ class AnisonLyrics implements LyricsSource {
                     .trim()
                     .split("-");
                 const url = a.attr("href") || "";
-                let lyrics = a.find("i").text().trim();
+                const lyrics = a.find("i").text().trim();
 
                 result.push({ anime, title, url, artist, lyrics });
             });
@@ -152,7 +146,7 @@ class AnisonLyrics implements LyricsSource {
         }
     }
 
-    private parseAnimeResult(data: any): AnimeResult[] {
+    private parseAnimeResult(data: string): AnimeResult[] {
         try {
             const $ = load(data);
             const animeList = $("#titlelist").find(".homesongs");
@@ -173,8 +167,8 @@ class AnisonLyrics implements LyricsSource {
         }
     }
 
-    private parseLyrics(lyrics: SongLyrics): SongLyrics {
-        const parseMethods = new Map<keyof SongLyrics, any>([
+    private parseLyrics(lyrics: Record<string, string>): SongLyrics {
+        const parseMethods = new Map<keyof SongLyrics, LyricsParser>([
             ["romajiLyrics", this.parseRomaji],
             ["englishLyrics", this.parseRomaji],
             ["kanjiLyrics", this.parseKanji],
@@ -183,7 +177,7 @@ class AnisonLyrics implements LyricsSource {
         const parsed: SongLyrics = {};
         for (const key of parseMethods.keys()) {
             if (lyrics[key]) {
-                const parse = parseMethods.get(key);
+                const parse = parseMethods.get(key) as LyricsParser;
                 parsed[key] = parse(lyrics[key]);
             }
         }
@@ -224,33 +218,40 @@ class AnisonLyrics implements LyricsSource {
         return { raw, colorized };
     }
 
-    private parseInfo(info: string, map: Map<string, any>) {
+    private parseInfo(
+        info: string,
+        existingInfo: SongInfo | AnimeInfo,
+        map: Map<string, keyof SongInfo | keyof AnimeInfo>
+    ): SongInfo | AnimeInfo {
+        const parsedInfo = existingInfo;
         const match = info.match(
             /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/gs
         );
 
-        if (!match) return {};
+        if (!match) {
+            return parsedInfo;
+        }
 
-        const parsedInfo: any = {};
-        match.forEach((value) => {
+        for (const value of match) {
             const singleMatch = value.match(
                 /<strong>(.*?)<\/strong>(?::|[\s\r\n]+)(.*?)<br>/s
             );
             if (singleMatch) {
                 const key = singleMatch[1].trim().replace("\n", "");
                 let prop = singleMatch[2].trim().replace("\n", "");
-                const infoKey = map.get(key);
-                const matchLink = prop.match(/<a.*?>(.*?)<\/a>/s); // nested tag
+                const infoKey = map.get(key) as keyof (SongInfo | AnimeInfo);
+
+                const matchLink = prop.match(/<a.*?>(.*?)<\/a>/s);
 
                 if (matchLink) prop = matchLink[1];
                 if (infoKey) parsedInfo[infoKey] = prop;
             }
-        });
+        }
 
         return parsedInfo;
     }
 
-    private parseSongInfo(info: string): SongInfo {
+    private parseSongInfo(info: string, existingInfo: SongInfo): SongInfo {
         const infoMap = new Map<string, keyof SongInfo>([
             ["Episodes", "episodes"],
             ["Description", "description"],
@@ -264,21 +265,21 @@ class AnisonLyrics implements LyricsSource {
             ["Arranged by", "arrangement"],
             ["Released:", "releaseDate"],
         ]);
-        const songInfo: SongInfo = this.parseInfo(info, infoMap);
+        const songInfo = this.parseInfo(info, existingInfo, infoMap);
 
-        return songInfo;
+        return songInfo as SongInfo;
     }
 
-    private parseAnimeInfo(info: string): AnimeInfo {
+    private parseAnimeInfo(info: string, existingInfo: AnimeInfo): AnimeInfo {
         const infoMap = new Map<string, keyof AnimeInfo>([
             ["Japanese Title", "japaneseTitle"],
             ["English Title", "englishTitle"],
             ["Released:", "releaseDate"],
         ]);
 
-        const animeInfo: AnimeInfo = this.parseInfo(info, infoMap);
+        const animeInfo = this.parseInfo(info, existingInfo, infoMap);
 
-        return animeInfo;
+        return animeInfo as AnimeInfo;
     }
 }
 

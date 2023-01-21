@@ -6,9 +6,9 @@ import Configurer from "./config/configurer";
         const config = await Configurer.getConfig();
         const uta = new UtaCLI(config);
 
-        uta.run();
-    } catch (error: any) {
-        console.error(error.message);
+        uta.parse(process.argv);
+    } catch (error) {
+        console.error(error);
         process.exit(1);
     }
 })();

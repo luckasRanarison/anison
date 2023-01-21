@@ -1,9 +1,9 @@
 class Utaten implements LyricsSource {
-    public name: string = "utaten";
-    public baseUrl: string = "https://utaten.com";
-    public language: string = "japanese";
-    public lyricsPreview: boolean = true;
-    public multipleFilters: boolean = true;
+    public name = "utaten";
+    public baseUrl = "https://utaten.com";
+    public language = "japanese";
+    public lyricsPreview = true;
+    public multipleFilters = true;
 
     searchSong(query: SongQuery): Promise<SongResult[]> {
         throw new Error("Method not implemented.");

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import chalk from "chalk";
 import inquirer from "inquirer";
 
@@ -6,13 +7,13 @@ async function createSongPrompt(
     lyricsPreview: boolean
 ): Promise<SongResult> {
     const choices: any[] = result.reduce((acc: any[], item, index) => {
-        const name: any = `${index + 1}) ${item.anime} ${
+        const name = `${index + 1}) ${item.anime} ${
             item.artist ? `${item.artist}-` : `:`
         }${chalk.bold(item.title)}`;
-        const value: any = { title: item.title, url: item.url };
+        const value = { title: item.title, url: item.url };
 
         if (lyricsPreview) {
-            const lyrics: any = new inquirer.Separator(chalk.gray(item.lyrics));
+            const lyrics = new inquirer.Separator(chalk.gray(item.lyrics));
             return acc.concat([{ name, value }, lyrics]);
         } else {
             return acc.concat([{ name, value }]);
@@ -69,12 +70,12 @@ async function createLyricsPrompt(lyrics: SongLyrics): Promise<LyricsObject> {
 
 async function createAnimePrompt(result: AnimeResult[]) {
     const choices: any[] = result.reduce((acc: any[], item, index) => {
-        const name: any = `${index + 1}) ${item.title} ${
+        const name = `${index + 1}) ${item.title} ${
             item.originalTitle
                 ? chalk.gray(`(${item.originalTitle.join("")})`)
                 : ""
         }`;
-        const value: any = { title: item.title, url: item.url };
+        const value = { title: item.title, url: item.url };
 
         return acc.concat([{ name, value }]);
     }, []);
